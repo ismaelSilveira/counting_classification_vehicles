@@ -3,6 +3,7 @@ import numpy as np
 
 MAX_WIDTH = 320
 MAX_HEIGHT = 240
+INFINITE = 100000000000
 
 
 def find_resolution_multiplier(w, h):

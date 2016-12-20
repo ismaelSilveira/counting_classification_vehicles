@@ -16,7 +16,7 @@ class BlobDetector:
         self.filter_by_circularity = [False, 0.01, 1.0]
         self.filter_by_convexity = [False, 0.2, 1.0]
         self.filter_by_inertia = [False, 0, 1]
-        self.previous_detections = []
+        self.detections = []
         self.blob_assigner = HungarianAlgorithm()
 
         # Setup SimpleBlobDetector parameters
@@ -67,10 +67,13 @@ class BlobDetector:
 
             blobs.append((x1, y1, x2 - x1, y2 - y1))
 
-        if len(self.previous_detections) == 0:
-            for blob in blobs:
-                self.previous_detections.append(Detection(blob, frame_number))
-        else:
-            self.blob_assigner.apply(blobs, self.previous_detections)
+        # if len(self.detections) == 0:
+        #     for blob in blobs:
+        #         self.detections.append(Detection(blob, frame_number))
+        # else:
+        #     self.detections = self.blob_assigner.apply(blobs, self.detections)
+        self.detections = self.blob_assigner.apply(blobs, self.detections, frame_number)
+        # for blob in blobs:
+        #     self.detections.append(Detection(blob, frame_number))
 
         return blobs

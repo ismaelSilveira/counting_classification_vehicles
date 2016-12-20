@@ -1,5 +1,7 @@
 class Detection:
-    def __init__(self, vehicle, frame_number):
-        self.vehicle = vehicle
-        self.frame_detected = frame_number
+    vehicle = None
+    frame_detected = -1
+    last_update = -1
+
+    def __init__(self):
         self.counted = False
