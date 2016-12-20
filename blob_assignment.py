@@ -21,11 +21,11 @@ def get_costs_matrix(actual_blobs, detections):
 
     for i, blob in enumerate(actual_blobs):
         for j, detection in enumerate(detections):
-            if detection.vehicle is None:
+            if detection.position is None:
                 costs_matrix[i][j] = INFINITE
             else:
                 costs_matrix[i][j] = euclidean_distance(
-                    blob_center(blob), blob_center(detection.vehicle)
+                    blob_center(blob), blob_center(detection.position)
                 )
 
     return costs_matrix, detections
@@ -41,27 +41,26 @@ class HungarianAlgorithm:
 
     def apply(self, actual_blobs, detections, frame_number):
         costs, detections = get_costs_matrix(actual_blobs, detections)
-        # print(costs, len(detections))
-        print(costs)
+        to_delete = []
+
         if len(costs) > 0:
             indexes = self.munkres_.compute(np.absolute(costs))
             for index in indexes:
-                if detections[index[1]].vehicle is None:
-                    detections[index[1]].vehicle = actual_blobs[index[0]]
+                if detections[index[1]].position is None:
                     detections[index[1]].frame_detected = frame_number
+                detections[index[1]].position = actual_blobs[index[0]]
                 detections[index[1]].last_update = frame_number
-                print(index, costs[index[0]][index[1]])
 
             if len(detections) > len(indexes):
-                count = len(detections)-1
-                to_delete = []
-                for i in range(0, count):
+                for i in range(0, len(detections)-1):
                     if (i not in [ind[1] for ind in indexes]) and \
                             ((frame_number - detections[i].last_update) > 5):
                         to_delete.append(i)
+        else:
+            for i in range(0, len(detections)):
+                if (frame_number - detections[i].last_update) > 5:
+                    to_delete.append(i)
 
-                print("to_delete=", to_delete)
-                detections = np.delete(detections, to_delete)
+        detections = np.delete(detections, to_delete)
 
         return detections
-        # return assigned_row, assigned_row_cost

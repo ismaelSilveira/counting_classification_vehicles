@@ -55,11 +55,11 @@ def draw_selected_line(image, line, color, multiplier=1):
     return cv2.line(image, line[0], line[1], color, 2)
 
 
-def draw_blobs_and_line(image, blobs, line, color, multiplier=1, draw_center=False):
+def draw_blobs_and_line(image, detections, line, color, count, multiplier=1, draw_center=False):
     color_line = (0, 0, 255)
 
-    for blob in blobs:
-        blob_ = translate_blob(x1y1wh_to_x1y1x2y2(blob), multiplier)
+    for detection in detections:
+        blob_ = translate_blob(x1y1wh_to_x1y1x2y2(detection.position), multiplier)
 
         cv2.rectangle(image,
                       (blob_[0], blob_[1]),
@@ -72,10 +72,14 @@ def draw_blobs_and_line(image, blobs, line, color, multiplier=1, draw_center=Fal
         if draw_center:
             cv2.circle(image, center_point, 1, color, 2)
 
-        if point_belongs_line(line, center_point, 1, multiplier):
+        if (not detection.counted) and \
+                point_belongs_line(line, center_point, 6, (0, 30)):
             color_line = (255, 0, 0)
+            count += 1
+            detection.counted = True
 
     draw_selected_line(image, line, color_line)
+    return count, detections
 
 
 def resize_line(line, multiplier):
@@ -83,11 +87,11 @@ def resize_line(line, multiplier):
             tuple((int(y / multiplier) for y in line[1])))
 
 
-def point_belongs_line(line, point, threshold, multiplier=1):
-    inside = ((line[0][0] <= point[0] <= line[1][0]) or
-              (line[1][0] <= point[0] <= line[0][0])) and \
-             ((line[0][1] <= point[1] <= line[1][1]) or
-              (line[1][1] <= point[1] <= line[0][1]))
+def point_belongs_line(line, point, threshold, extend=(0, 0)):
+    inside = ((line[0][0] - extend[0] <= point[0] <= line[1][0] + extend[0]) or
+              (line[1][0] - extend[0] <= point[0] <= line[0][0] + extend[0])) and \
+             ((line[0][1] - extend[1] <= point[1] <= line[1][1] + extend[1]) or
+              (line[1][1] - extend[1] <= point[1] <= line[0][1] + extend[1]))
 
     if inside:
         if line[1][1] == line[0][1]:
@@ -99,8 +103,8 @@ def point_belongs_line(line, point, threshold, multiplier=1):
                 ((point[0] - line[0][0]) / (line[1][0] - line[0][0])) -
                 ((point[1] - line[0][1]) / (line[1][1] - line[0][1]))
             )
-
-        return distance < (threshold / multiplier)
+        print("distance=", distance, ", threshold=", threshold, ", extend=", extend, ", belongs=", distance < threshold, ", point=", point)
+        return distance <= threshold
     else:
         return False
 

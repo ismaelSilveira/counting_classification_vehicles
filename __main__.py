@@ -3,10 +3,12 @@ import cv2
 
 import background_subtraction as bg
 import blob_detection as bd
+import detection
 from utils import \
     find_resolution_multiplier, \
     draw_blobs_and_line, \
-    reduce_line
+    reduce_line, \
+    draw_selected_line
 
 
 # mouse callback function
@@ -24,13 +26,10 @@ def define_line(event, x, y, flags, param):
 if __name__ == '__main__':
     print('Start to process images...')
 
-    MAX_WIDTH = 320
-    MAX_HEIGHT = 240
-
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MVI_0022_xvid_001.avi'
+    source = '/home/ismael/Desktop/ModTall/VideosTrafico/MVI_0022_xvid_001.avi'
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/M6 Motorway Traffic.mp4'
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/UK Motorway M25 Trucks, Lorries, Cars Highway.mp4'
-    source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2617.avi'
+    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2618.avi'
 
     cap = cv2.VideoCapture(source)
     # Getting width and height of captured images
@@ -59,6 +58,7 @@ if __name__ == '__main__':
 
     has_more_images, frame = cap.read()
     frame_number = 1
+    count = 0
 
     while has_more_images:
         original = np.copy(frame)
@@ -68,47 +68,50 @@ if __name__ == '__main__':
         if line_defined:
             frame_resized = cv2.resize(frame, (work_w, work_h))
             fgmask = background_subtractor.apply(frame_resized)
-            # cv2.imshow("fgmask", fgmask)
 
-            # Erode and Dilate the results for removing the noise
-            morphed_mask = np.copy(fgmask)
-            morphed_mask = cv2.morphologyEx(morphed_mask,
-                                            cv2.MORPH_ERODE,
-                                            cv2.getStructuringElement(
-                                                cv2.MORPH_RECT,
-                                                (3, 3)),
-                                            iterations=2)
-            morphed_mask = cv2.morphologyEx(morphed_mask,
-                                            cv2.MORPH_DILATE,
-                                            cv2.getStructuringElement(
-                                                cv2.MORPH_RECT,
-                                                (4, 4)),
-                                            iterations=1)
-            morphed_mask = cv2.morphologyEx(morphed_mask,
-                                            cv2.MORPH_ERODE,
-                                            cv2.getStructuringElement(
-                                                cv2.MORPH_RECT,
-                                                (2, 2)),
-                                            iterations=3)
-            # morphed_mask = cv2.morphologyEx(morphed_mask,
-            #                                 cv2.MORPH_DILATE,
-            #                                 cv2.getStructuringElement(
-            #                                     cv2.MORPH_RECT,
-            #                                     (2, 2)),
-            #                                 iterations=1)
+            if frame_number > 90:
+                # Erode and Dilate the results for removing the noise
+                morphed_mask = np.copy(fgmask)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_ERODE,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT,
+                                                    (3, 3)),
+                                                iterations=2)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_DILATE,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT,
+                                                    (2, 4)),
+                                                iterations=1)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_ERODE,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT,
+                                                    (2, 4)),
+                                                iterations=1)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_DILATE,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT,
+                                                    (2, 4)),
+                                                iterations=2)
 
-            blobs = blob_detector.apply(morphed_mask, frame_number)
+                blobs = blob_detector.apply(morphed_mask, frame_number)
 
-            cv2.imshow("Morphed", morphed_mask)
+                cv2.imshow("Morphed", morphed_mask)
 
-            color = (0, 255, 0)
-            drawedBlobs = draw_blobs_and_line(original,
-                                              blobs,
-                                              line,
-                                              color,
-                                              resolution_multiplier,
-                                              True)
-            # cv2.imshow("Blobs", drawedBlobs)
+                color = (0, 255, 0)
+                count, blob_detector.detections = \
+                    draw_blobs_and_line(original,
+                                        blob_detector.detections,
+                                        line,
+                                        color,
+                                        count,
+                                        resolution_multiplier,
+                                        True)
+            else:
+                draw_selected_line(original, line, (0, 0, 255))
 
             has_more_images, frame = cap.read()
 
@@ -121,5 +124,6 @@ if __name__ == '__main__':
         elif (k == ord('l')) and line_defined:
             print(line[0], line[1])
 
+    print(count)
     cap.release()
     cv2.destroyAllWindows()
