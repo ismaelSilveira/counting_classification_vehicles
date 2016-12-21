@@ -1,7 +1,6 @@
 import cv2
 
 from blob_assignment import HungarianAlgorithm
-from detection import Detection
 
 
 class BlobDetector:
@@ -67,6 +66,8 @@ class BlobDetector:
 
             blobs.append((x1, y1, x2 - x1, y2 - y1))
 
-        self.detections = self.blob_assigner.apply(blobs, self.detections, frame_number)
+        self.detections = self.blob_assigner.apply(blobs,
+                                                   self.detections,
+                                                   frame_number)
 
         return blobs

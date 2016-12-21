@@ -50,6 +50,8 @@ class HungarianAlgorithm:
                     detections[index[1]].frame_detected = frame_number
                 detections[index[1]].position = actual_blobs[index[0]]
                 detections[index[1]].last_update = frame_number
+                detections[index[1]].size = (actual_blobs[index[0]][2],
+                                             actual_blobs[index[0]][3])
 
             if len(detections) > len(indexes):
                 for i in range(0, len(detections)-1):

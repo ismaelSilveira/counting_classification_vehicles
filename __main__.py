@@ -3,7 +3,7 @@ import cv2
 
 import background_subtraction as bg
 import blob_detection as bd
-import detection
+import vehicle_counting as vc
 from utils import \
     find_resolution_multiplier, \
     draw_blobs_and_line, \
@@ -43,6 +43,7 @@ if __name__ == '__main__':
 
     background_subtractor = bg.BackgroundSubtractor()
     blob_detector = bd.BlobDetector()
+    vehicle_counter = vc.VehicleCounting()
 
     has_more_images = True
     line = []
@@ -59,6 +60,9 @@ if __name__ == '__main__':
     has_more_images, frame = cap.read()
     frame_number = 1
     count = 0
+
+    classify = True
+    vehicles_to_classify = []
 
     while has_more_images:
         original = np.copy(frame)
@@ -102,14 +106,22 @@ if __name__ == '__main__':
                 cv2.imshow("Morphed", morphed_mask)
 
                 color = (0, 255, 0)
-                count, blob_detector.detections = \
+                (count,
+                 blob_detector.detections,
+                 classify,
+                 vehicles_to_classify) = \
                     draw_blobs_and_line(original,
                                         blob_detector.detections,
                                         line,
                                         color,
                                         count,
+                                        classify,
+                                        vehicles_to_classify,
                                         resolution_multiplier,
                                         True)
+                if not classify:
+                    vc.calculate_cars_area(vehicles_to_classify)
+
             else:
                 draw_selected_line(original, line, (0, 0, 255))
 

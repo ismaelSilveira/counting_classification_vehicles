@@ -55,11 +55,13 @@ def draw_selected_line(image, line, color, multiplier=1):
     return cv2.line(image, line[0], line[1], color, 2)
 
 
-def draw_blobs_and_line(image, detections, line, color, count, multiplier=1, draw_center=False):
+def draw_blobs_and_line(image, detections, line, color, count, classify,
+                        vehicles_to_classify, multiplier=1, draw_center=False):
     color_line = (0, 0, 255)
 
     for detection in detections:
-        blob_ = translate_blob(x1y1wh_to_x1y1x2y2(detection.position), multiplier)
+        blob_ = translate_blob(x1y1wh_to_x1y1x2y2(detection.position),
+                               multiplier)
 
         cv2.rectangle(image,
                       (blob_[0], blob_[1]),
@@ -77,9 +79,14 @@ def draw_blobs_and_line(image, detections, line, color, count, multiplier=1, dra
             color_line = (255, 0, 0)
             count += 1
             detection.counted = True
+            if classify:
+                vehicles_to_classify.append(detection)
 
     draw_selected_line(image, line, color_line)
-    return count, detections
+    return count,\
+           detections,\
+           len(vehicles_to_classify) < 5,\
+           vehicles_to_classify
 
 
 def resize_line(line, multiplier):
@@ -121,3 +128,7 @@ def euclidean_distance(point1, point2):
     :return:
     """
     return np.linalg.norm(np.array(point1) - np.array(point2))
+
+
+def calculate_cars_area(vehicles):
+    return np.mean([v.size[0] * v.size[1] for v in vehicles])
