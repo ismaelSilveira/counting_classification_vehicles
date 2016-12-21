@@ -1,6 +1,13 @@
 import cv2
+import numpy as np
 
 from blob_assignment import HungarianAlgorithm
+from imutils.object_detection import non_max_suppression
+from utils import \
+    x1y1wh_to_x1y1x2y2_list, \
+    x1y1x2y2_to_x1y1wh_list, \
+    filter_blobs_by_distance, \
+    filter_blobs_by_area
 
 
 class BlobDetector:
@@ -8,10 +15,10 @@ class BlobDetector:
     detector = None
 
     def __init__(self):
-        self.threshold = [1, 100, 50]
-        self.min_dist_between_blobs = 25
+        self.threshold = [1, 100, 25]
+        self.min_dist_between_blobs = 20
         self.filter_by_color = [True, 255]
-        self.filter_by_area = [True, 50, 100000]
+        self.filter_by_area = [True, 35, 10000]
         self.filter_by_circularity = [False, 0.01, 1.0]
         self.filter_by_convexity = [False, 0.2, 1.0]
         self.filter_by_inertia = [False, 0, 1]
@@ -58,13 +65,23 @@ class BlobDetector:
     def apply(self, image, frame_number):
         blobs = []
 
-        for keyPoint in self.detector.detect(image):
-            x1 = max(int(keyPoint.pt[0] - (keyPoint.size / 2)), 0)
-            y1 = max(int(keyPoint.pt[1] - (keyPoint.size / 2)), 0)
-            x2 = min(int(keyPoint.pt[0] + (keyPoint.size / 2)), image.shape[1])
-            y2 = min(int(keyPoint.pt[1] + (keyPoint.size / 2)), image.shape[0])
+        im2 = np.copy(image)
+        contours = cv2.findContours(im2,
+                                    cv2.RETR_TREE,
+                                    cv2.CHAIN_APPROX_SIMPLE)[1]
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            blobs.append((x, y, w, h))
 
-            blobs.append((x1, y1, x2 - x1, y2 - y1))
+        if blobs:
+            if self.filter_by_area:
+                blobs = filter_blobs_by_area(blobs, (self.filter_by_area[1],
+                                                     self.filter_by_area[2]))
+            blobs = filter_blobs_by_distance(blobs, self.min_dist_between_blobs)
+
+            blobs = non_max_suppression(x1y1wh_to_x1y1x2y2_list(blobs),
+                                        overlapThresh=0.25)
+            blobs = x1y1x2y2_to_x1y1wh_list(blobs)
 
         self.detections = self.blob_assigner.apply(blobs,
                                                    self.detections,

@@ -37,6 +37,28 @@ def x1y1wh_to_x1y1x2y2(rectangle):
             rectangle[1] + rectangle[3])
 
 
+def x1y1wh_to_x1y1x2y2_list(rectangles):
+    if len(rectangles) > 0:
+        return np.apply_along_axis(x1y1wh_to_x1y1x2y2, 1, rectangles)
+    else:
+        return []
+
+
+def x1y1x2y2_to_x1y1wh(rectangle):
+    """
+    Transform a rectangle expressed as (x1,y1,x2,y2) to (x1,y1, width, height)
+    """
+    return rectangle[0], rectangle[1], rectangle[2] - rectangle[0], \
+        rectangle[3] - rectangle[1]
+
+
+def x1y1x2y2_to_x1y1wh_list(rectangles):
+    if len(rectangles) > 0:
+        return np.apply_along_axis(x1y1x2y2_to_x1y1wh, 1, rectangles)
+    else:
+        return []
+
+
 def reduce_line(line, multiplier=1):
     return [(int(line[0][0] / multiplier), int(line[0][1] / multiplier)),
             (int(line[1][0] / multiplier), int(line[1][1] / multiplier))]
@@ -183,3 +205,29 @@ def classify_vehicles(detections, cars_area, deviation):
             cars += 1
 
     return bikes, cars, trucks
+
+
+def filter_blobs_by_distance(blobs, distance):
+    result = []
+
+    for i, blob in enumerate(blobs):
+        if blob in blobs:
+            filtered_blobs = list(
+                filter(lambda x: euclidean_distance(blob, x) < distance, blobs)
+            )
+
+            x_min = min(filtered_blobs, key=lambda x: x[0])[0]
+            y_min = min(filtered_blobs, key=lambda x: x[1])[1]
+            w_min = max(filtered_blobs, key=lambda x: x[0] + x[2])
+            w_min = (w_min[0] + w_min[2]) - x_min
+            h_min = max(filtered_blobs, key=lambda x: x[1] + x[3])
+            h_min = (h_min[1] + h_min[3]) - y_min
+            result.append((x_min, y_min, w_min, h_min))
+            for filtered_blob in filtered_blobs:
+                blobs = [x for x in blobs if x != filtered_blob]
+
+    return result
+
+
+def filter_blobs_by_area(blobs, area):
+    return list(filter(lambda x: area[0] <= (x[2] * x[3]) <= area[1], blobs))

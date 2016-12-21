@@ -28,9 +28,11 @@ if __name__ == '__main__':
     print('Start to process images...')
 
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MVI_0022_xvid_001.avi'
+    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/sarmiento1.mp4'
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/M6 Motorway Traffic.mp4'
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/UK Motorway M25 Trucks, Lorries, Cars Highway.mp4'
-    source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2617.avi'
+    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2617.avi'
+    source = '/home/ismael/Desktop/ModTall/VideosTrafico/Alibi ALI-IPU3030RV IP Camera Highway Surveillance.mp4'
 
     cap = cv2.VideoCapture(source)
     # Getting width and height of captured images
@@ -86,26 +88,26 @@ if __name__ == '__main__':
                                                 cv2.MORPH_ERODE,
                                                 cv2.getStructuringElement(
                                                     cv2.MORPH_RECT,
-                                                    (3, 3)),
-                                                iterations=3)
-                morphed_mask = cv2.morphologyEx(morphed_mask,
-                                                cv2.MORPH_DILATE,
-                                                cv2.getStructuringElement(
-                                                    cv2.MORPH_RECT,
-                                                    (3, 3)),
-                                                iterations=2)
-                morphed_mask = cv2.morphologyEx(morphed_mask,
-                                                cv2.MORPH_ERODE,
-                                                cv2.getStructuringElement(
-                                                    cv2.MORPH_RECT,
-                                                    (2, 4)),
-                                                iterations=3)
-                morphed_mask = cv2.morphologyEx(morphed_mask,
-                                                cv2.MORPH_DILATE,
-                                                cv2.getStructuringElement(
-                                                    cv2.MORPH_RECT,
-                                                    (2, 4)),
-                                                iterations=2)
+                                                    (2, 2)),
+                                                iterations=1)
+                # morphed_mask = cv2.morphologyEx(morphed_mask,
+                #                                 cv2.MORPH_DILATE,
+                #                                 cv2.getStructuringElement(
+                #                                     cv2.MORPH_RECT,
+                #                                     (3, 3)),
+                #                                 iterations=2)
+                # morphed_mask = cv2.morphologyEx(morphed_mask,
+                #                                 cv2.MORPH_ERODE,
+                #                                 cv2.getStructuringElement(
+                #                                     cv2.MORPH_RECT,
+                #                                     (2, 4)),
+                #                                 iterations=3)
+                # morphed_mask = cv2.morphologyEx(morphed_mask,
+                #                                 cv2.MORPH_DILATE,
+                #                                 cv2.getStructuringElement(
+                #                                     cv2.MORPH_RECT,
+                #                                     (2, 4)),
+                #                                 iterations=2)
 
                 blobs = blob_detector.apply(morphed_mask, frame_number)
 
