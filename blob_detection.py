@@ -9,7 +9,7 @@ class BlobDetector:
 
     def __init__(self):
         self.threshold = [1, 100, 50]
-        self.min_dist_between_blobs = 20
+        self.min_dist_between_blobs = 25
         self.filter_by_color = [True, 255]
         self.filter_by_area = [True, 50, 100000]
         self.filter_by_circularity = [False, 0.01, 1.0]

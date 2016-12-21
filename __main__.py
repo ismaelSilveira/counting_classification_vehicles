@@ -3,12 +3,13 @@ import cv2
 
 import background_subtraction as bg
 import blob_detection as bd
-import vehicle_counting as vc
 from utils import \
     find_resolution_multiplier, \
     draw_blobs_and_line, \
     reduce_line, \
-    draw_selected_line
+    draw_selected_line, \
+    calculate_cars_area, \
+    classify_vehicles
 
 
 # mouse callback function
@@ -26,10 +27,10 @@ def define_line(event, x, y, flags, param):
 if __name__ == '__main__':
     print('Start to process images...')
 
-    source = '/home/ismael/Desktop/ModTall/VideosTrafico/MVI_0022_xvid_001.avi'
+    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MVI_0022_xvid_001.avi'
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/M6 Motorway Traffic.mp4'
     # source = '/home/ismael/Desktop/ModTall/VideosTrafico/UK Motorway M25 Trucks, Lorries, Cars Highway.mp4'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2618.avi'
+    source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2617.avi'
 
     cap = cv2.VideoCapture(source)
     # Getting width and height of captured images
@@ -43,7 +44,6 @@ if __name__ == '__main__':
 
     background_subtractor = bg.BackgroundSubtractor()
     blob_detector = bd.BlobDetector()
-    vehicle_counter = vc.VehicleCounting()
 
     has_more_images = True
     line = []
@@ -62,7 +62,13 @@ if __name__ == '__main__':
     count = 0
 
     classify = True
+    classified = False
     vehicles_to_classify = []
+    bikes = 0
+    cars = 0
+    trucks = 0
+    cars_area = 0
+    deviation = 0
 
     while has_more_images:
         original = np.copy(frame)
@@ -73,7 +79,7 @@ if __name__ == '__main__':
             frame_resized = cv2.resize(frame, (work_w, work_h))
             fgmask = background_subtractor.apply(frame_resized)
 
-            if frame_number > 90:
+            if frame_number > 120:
                 # Erode and Dilate the results for removing the noise
                 morphed_mask = np.copy(fgmask)
                 morphed_mask = cv2.morphologyEx(morphed_mask,
@@ -81,19 +87,19 @@ if __name__ == '__main__':
                                                 cv2.getStructuringElement(
                                                     cv2.MORPH_RECT,
                                                     (3, 3)),
-                                                iterations=2)
+                                                iterations=3)
                 morphed_mask = cv2.morphologyEx(morphed_mask,
                                                 cv2.MORPH_DILATE,
                                                 cv2.getStructuringElement(
                                                     cv2.MORPH_RECT,
-                                                    (2, 4)),
-                                                iterations=1)
+                                                    (3, 3)),
+                                                iterations=2)
                 morphed_mask = cv2.morphologyEx(morphed_mask,
                                                 cv2.MORPH_ERODE,
                                                 cv2.getStructuringElement(
                                                     cv2.MORPH_RECT,
                                                     (2, 4)),
-                                                iterations=1)
+                                                iterations=3)
                 morphed_mask = cv2.morphologyEx(morphed_mask,
                                                 cv2.MORPH_DILATE,
                                                 cv2.getStructuringElement(
@@ -106,21 +112,37 @@ if __name__ == '__main__':
                 cv2.imshow("Morphed", morphed_mask)
 
                 color = (0, 255, 0)
-                (count,
-                 blob_detector.detections,
-                 classify,
-                 vehicles_to_classify) = \
+                (count, blob_detector.detections,
+                 classify, vehicles_to_classify,
+                 bikes, cars, trucks) = \
                     draw_blobs_and_line(original,
                                         blob_detector.detections,
                                         line,
                                         color,
                                         count,
+                                        bikes,
+                                        cars,
+                                        trucks,
+                                        cars_area,
+                                        deviation,
                                         classify,
+                                        classified,
                                         vehicles_to_classify,
                                         resolution_multiplier,
                                         True)
-                if not classify:
-                    vc.calculate_cars_area(vehicles_to_classify)
+                if not (classify or classified):
+                    cars_area, deviation = \
+                        calculate_cars_area(vehicles_to_classify)
+                    print("cars area=", cars_area, " deviation=", deviation)
+                    print([v.size[0] * v.size[1] for v in vehicles_to_classify])
+                    classified = True
+                    (bikes,
+                     cars,
+                     trucks) = \
+                        classify_vehicles(vehicles_to_classify,
+                                          cars_area,
+                                          deviation)
+                    print(bikes, cars, trucks)
 
             else:
                 draw_selected_line(original, line, (0, 0, 255))

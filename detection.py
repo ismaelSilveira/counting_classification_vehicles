@@ -1,4 +1,4 @@
-from vehicle_counting import Vehicle
+from vehicle import Vehicle
 
 
 class Detection:

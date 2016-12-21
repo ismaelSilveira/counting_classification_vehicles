@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+import vehicle as vc
+
 MAX_WIDTH = 320
 MAX_HEIGHT = 240
 INFINITE = 100000000000
@@ -55,7 +57,8 @@ def draw_selected_line(image, line, color, multiplier=1):
     return cv2.line(image, line[0], line[1], color, 2)
 
 
-def draw_blobs_and_line(image, detections, line, color, count, classify,
+def draw_blobs_and_line(image, detections, line, color, count, bikes, cars,
+                        trucks, cars_area, deviation, classify, classified,
                         vehicles_to_classify, multiplier=1, draw_center=False):
     color_line = (0, 0, 255)
 
@@ -75,23 +78,44 @@ def draw_blobs_and_line(image, detections, line, color, count, classify,
             cv2.circle(image, center_point, 1, color, 2)
 
         if (not detection.counted) and \
-                point_belongs_line(line, center_point, 6, (0, 30)):
+                point_belongs_line(line, center_point, 6, (0, 45)):
             color_line = (255, 0, 0)
             count += 1
             detection.counted = True
             if classify:
                 vehicles_to_classify.append(detection)
+            elif classified:
+                (bikes, cars, trucks) = classify_detection(detection,
+                                                           cars_area,
+                                                           deviation,
+                                                           bikes,
+                                                           cars,
+                                                           trucks)
+                print(detection.vehicle, detection.size[0] * detection.size[1])
+                print(bikes, cars, trucks)
 
     draw_selected_line(image, line, color_line)
-    return count,\
-           detections,\
-           len(vehicles_to_classify) < 5,\
-           vehicles_to_classify
+    return count, detections, len(vehicles_to_classify) < 10, \
+           vehicles_to_classify, bikes, cars, trucks
 
 
 def resize_line(line, multiplier):
     return (tuple((int(x / multiplier) for x in line[0])),
             tuple((int(y / multiplier) for y in line[1])))
+
+
+def blob_center(blob):
+    return int(blob[0] + (blob[2]/2)), int(blob[1] + (blob[3]/2))
+
+
+def euclidean_distance(point1, point2):
+    """
+    Returns the euclidean distance between point 1 and 2.
+    :param point1: Tuple with the position of the point 1
+    :param point2: Tuple with the position of the point 2
+    :return:
+    """
+    return np.linalg.norm(np.array(point1) - np.array(point2))
 
 
 def point_belongs_line(line, point, threshold, extend=(0, 0)):
@@ -110,25 +134,52 @@ def point_belongs_line(line, point, threshold, extend=(0, 0)):
                 ((point[0] - line[0][0]) / (line[1][0] - line[0][0])) -
                 ((point[1] - line[0][1]) / (line[1][1] - line[0][1]))
             )
-        print("distance=", distance, ", threshold=", threshold, ", extend=", extend, ", belongs=", distance < threshold, ", point=", point)
+        # print("distance=", distance, ", threshold=", threshold, ", extend=", extend, ", belongs=", distance < threshold, ", point=", point)
         return distance <= threshold
     else:
         return False
 
 
-def blob_center(blob):
-    return int(blob[0] + (blob[2]/2)), int(blob[1] + (blob[3]/2))
-
-
-def euclidean_distance(point1, point2):
-    """
-    Returns the euclidean distance between point 1 and 2.
-    :param point1: Tuple with the position of the point 1
-    :param point2: Tuple with the position of the point 2
-    :return:
-    """
-    return np.linalg.norm(np.array(point1) - np.array(point2))
-
-
 def calculate_cars_area(vehicles):
-    return np.mean([v.size[0] * v.size[1] for v in vehicles])
+    # return np.average([v.size[0] * v.size[1] for v in vehicles])
+    # return np.mean([v.size[0] * v.size[1] for v in vehicles])
+    return np.median([v.size[0] * v.size[1] for v in vehicles]), \
+           np.std([v.size[0] * v.size[1] for v in vehicles])
+
+
+def classify_detection(detection, cars_area, deviation, bikes, cars, trucks):
+    comparison_value = (cars_area - deviation, cars_area + deviation)
+
+    if (detection.size[0] * detection.size[1]) <= (comparison_value[0] * 0.6):
+        detection.vehicle = vc.Vehicle.bike
+        bikes += 1
+    elif (detection.size[0] * detection.size[1]) >= (comparison_value[1] * 3):
+        detection.vehicle = vc.Vehicle.truck
+        trucks += 1
+    else:
+        detection.vehicle = vc.Vehicle.car
+        cars += 1
+
+    return bikes, cars, trucks
+
+
+def classify_vehicles(detections, cars_area, deviation):
+    bikes = 0
+    cars = 0
+    trucks = 0
+    for detection in detections:
+        comparison_value = (cars_area - deviation, cars_area + deviation)
+
+        if (detection.size[0] * detection.size[1]) <= \
+                (comparison_value[0] * 0.6):
+            detection.vehicle = vc.Vehicle.bike
+            bikes += 1
+        elif (detection.size[0] * detection.size[1]) >= \
+                (comparison_value[1] * 3):
+            detection.vehicle = vc.Vehicle.truck
+            trucks += 1
+        else:
+            detection.vehicle = vc.Vehicle.car
+            cars += 1
+
+    return bikes, cars, trucks
