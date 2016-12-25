@@ -27,14 +27,22 @@ def define_line(event, x, y, flags, param):
 if __name__ == '__main__':
     print('Start to process images...')
 
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MVI_0022_xvid_001.avi'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/sarmiento1.mp4'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/M6 Motorway Traffic.mp4'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/UK Motorway M25 Trucks, Lorries, Cars Highway.mp4'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/MOV_2617.avi'
-    source = '/home/ismael/Desktop/ModTall/VideosTrafico/Alibi ALI-IPU3030RV IP Camera Highway Surveillance.mp4'
+    source = '/home/ismael/Desktop/ModTall/VideosTrafico/AvItalia_1.mp4'
+    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/AvItalia_2.mp4'
+    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/Sarmiento.mp4'
 
     cap = cv2.VideoCapture(source)
+
+    # Original FPS
+    try:
+        FPS = float(int(cap.get(cv2.CAP_PROP_FPS)))
+        if FPS == 0.:
+            FPS = 30
+    except ValueError:
+        FPS = 30
+
+    print("Working at", FPS, "FPS")
+
     # Getting width and height of captured images
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -70,7 +78,6 @@ if __name__ == '__main__':
     cars = 0
     trucks = 0
     cars_area = 0
-    deviation = 0
 
     while has_more_images:
         original = np.copy(frame)
@@ -85,29 +92,25 @@ if __name__ == '__main__':
                 # Erode and Dilate the results for removing the noise
                 morphed_mask = np.copy(fgmask)
                 morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_CLOSE,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT, (5, 5)),
+                                                iterations=2)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_OPEN,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT, (3, 3)),
+                                                iterations=2)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
+                                                cv2.MORPH_CLOSE,
+                                                cv2.getStructuringElement(
+                                                    cv2.MORPH_RECT, (5, 5)),
+                                                iterations=1)
+                morphed_mask = cv2.morphologyEx(morphed_mask,
                                                 cv2.MORPH_ERODE,
                                                 cv2.getStructuringElement(
-                                                    cv2.MORPH_RECT,
-                                                    (2, 2)),
+                                                    cv2.MORPH_RECT, (5, 5)),
                                                 iterations=1)
-                # morphed_mask = cv2.morphologyEx(morphed_mask,
-                #                                 cv2.MORPH_DILATE,
-                #                                 cv2.getStructuringElement(
-                #                                     cv2.MORPH_RECT,
-                #                                     (3, 3)),
-                #                                 iterations=2)
-                # morphed_mask = cv2.morphologyEx(morphed_mask,
-                #                                 cv2.MORPH_ERODE,
-                #                                 cv2.getStructuringElement(
-                #                                     cv2.MORPH_RECT,
-                #                                     (2, 4)),
-                #                                 iterations=3)
-                # morphed_mask = cv2.morphologyEx(morphed_mask,
-                #                                 cv2.MORPH_DILATE,
-                #                                 cv2.getStructuringElement(
-                #                                     cv2.MORPH_RECT,
-                #                                     (2, 4)),
-                #                                 iterations=2)
 
                 blobs = blob_detector.apply(morphed_mask, frame_number)
 
@@ -126,26 +129,19 @@ if __name__ == '__main__':
                                         cars,
                                         trucks,
                                         cars_area,
-                                        deviation,
                                         classify,
                                         classified,
                                         vehicles_to_classify,
                                         resolution_multiplier,
                                         True)
-                if not (classify or classified):
-                    cars_area, deviation = \
-                        calculate_cars_area(vehicles_to_classify)
-                    print("cars area=", cars_area, " deviation=", deviation)
-                    print([v.size[0] * v.size[1] for v in vehicles_to_classify])
-                    classified = True
-                    (bikes,
-                     cars,
-                     trucks) = \
-                        classify_vehicles(vehicles_to_classify,
-                                          cars_area,
-                                          deviation)
-                    print(bikes, cars, trucks)
 
+                if not (classify or classified):
+                    cars_area = calculate_cars_area(vehicles_to_classify)
+                    print("Cars area=", cars_area)
+                    classified = True
+                    (bikes, cars, trucks) = \
+                        classify_vehicles(vehicles_to_classify, cars_area)
+                    # print(bikes, cars, trucks)
             else:
                 draw_selected_line(original, line, (0, 0, 255))
 
@@ -153,13 +149,17 @@ if __name__ == '__main__':
 
         cv2.imshow("Original", original)
 
-        k = cv2.waitKey(30) & 0xff
+        k = cv2.waitKey(1) & 0xff
         if k in (ord('q'), ord('Q')):
             exit_cause = 'CLOSED BY PRESSING "Q|q"'
             break
         elif (k == ord('l')) and line_defined:
             print(line[0], line[1])
 
-    print(count)
+    print("Total count=", count)
+    print("Total bikes=", bikes)
+    print("Total cars=", cars)
+    print("Total trucks=", trucks)
+
     cap.release()
     cv2.destroyAllWindows()

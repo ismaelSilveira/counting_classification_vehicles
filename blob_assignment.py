@@ -1,12 +1,11 @@
 import numpy as np
-import math
 from munkres import Munkres
 
 from detection import Detection
 from utils import blob_center, euclidean_distance, INFINITE
 
 
-def get_costs_matrix(actual_blobs, detections):
+def get_costs_matrix(actual_blobs, detections, threshold):
     # the costs matrix width has to be larger or equal than height
     rows_count = len(actual_blobs)
 
@@ -24,9 +23,12 @@ def get_costs_matrix(actual_blobs, detections):
             if detection.position is None:
                 costs_matrix[i][j] = INFINITE
             else:
-                costs_matrix[i][j] = euclidean_distance(
+                distance = euclidean_distance(
                     blob_center(blob), blob_center(detection.position)
                 )
+
+                costs_matrix[i][j] = \
+                    distance if distance <= threshold else INFINITE
 
     return costs_matrix, detections
 
@@ -40,7 +42,9 @@ class HungarianAlgorithm:
         self.munkres_ = Munkres()
 
     def apply(self, actual_blobs, detections, frame_number):
-        costs, detections = get_costs_matrix(actual_blobs, detections)
+        costs, detections = get_costs_matrix(actual_blobs,
+                                             detections,
+                                             threshold=6)
         to_delete = []
 
         if len(costs) > 0:
@@ -50,8 +54,6 @@ class HungarianAlgorithm:
                     detections[index[1]].frame_detected = frame_number
                 detections[index[1]].position = actual_blobs[index[0]]
                 detections[index[1]].last_update = frame_number
-                detections[index[1]].size = (actual_blobs[index[0]][2],
-                                             actual_blobs[index[0]][3])
 
             if len(detections) > len(indexes):
                 for i in range(0, len(detections)-1):

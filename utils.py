@@ -1,4 +1,5 @@
 import cv2
+from cv2 import putText
 import numpy as np
 
 import vehicle as vc
@@ -80,7 +81,7 @@ def draw_selected_line(image, line, color, multiplier=1):
 
 
 def draw_blobs_and_line(image, detections, line, color, count, bikes, cars,
-                        trucks, cars_area, deviation, classify, classified,
+                        trucks, cars_area, classify, classified,
                         vehicles_to_classify, multiplier=1, draw_center=False):
     color_line = (0, 0, 255)
 
@@ -99,25 +100,32 @@ def draw_blobs_and_line(image, detections, line, color, count, bikes, cars,
         if draw_center:
             cv2.circle(image, center_point, 1, color, 2)
 
-        if (not detection.counted) and \
-                point_belongs_line(line, center_point, 6, (0, 45)):
-            color_line = (255, 0, 0)
-            count += 1
-            detection.counted = True
-            if classify:
-                vehicles_to_classify.append(detection)
-            elif classified:
-                (bikes, cars, trucks) = classify_detection(detection,
-                                                           cars_area,
-                                                           deviation,
-                                                           bikes,
-                                                           cars,
-                                                           trucks)
-                print(detection.vehicle, detection.size[0] * detection.size[1])
-                print(bikes, cars, trucks)
+        if not detection.counted:
+            if point_belongs_line(line, center_point, 6, (0, 20)):
+                color_line = (255, 0, 0)
+                count += 1
+                detection.counted = True
+                if classify:
+                    # print("sin clasificar: ", detection.position, detection.position[2] * detection.position[3])
+                    vehicles_to_classify.append(detection.copy())
+                elif classified:
+                    (bikes, cars, trucks) = classify_detection(detection,
+                                                               cars_area,
+                                                               bikes,
+                                                               cars,
+                                                               trucks)
+                    # print(detection.vehicle, detection.position[2] * detection.position[3])
+                    # print(bikes, cars, trucks)
+        else:
+            if not point_belongs_line(line, center_point, 6, (0, 20)):
+                detection.counted = False
+
+        if detection.counted:
+            putText(image, "Si", (blob_[0], blob_[1]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2)
 
     draw_selected_line(image, line, color_line)
-    return count, detections, len(vehicles_to_classify) < 10, \
+
+    return count, detections, len(vehicles_to_classify) < 30, \
            vehicles_to_classify, bikes, cars, trucks
 
 
@@ -141,10 +149,11 @@ def euclidean_distance(point1, point2):
 
 
 def point_belongs_line(line, point, threshold, extend=(0, 0)):
-    inside = ((line[0][0] - extend[0] <= point[0] <= line[1][0] + extend[0]) or
-              (line[1][0] - extend[0] <= point[0] <= line[0][0] + extend[0])) and \
-             ((line[0][1] - extend[1] <= point[1] <= line[1][1] + extend[1]) or
-              (line[1][1] - extend[1] <= point[1] <= line[0][1] + extend[1]))
+    inside = \
+        ((line[0][0] - extend[0] <= point[0] <= line[1][0] + extend[0]) or
+         (line[1][0] - extend[0] <= point[0] <= line[0][0] + extend[0])) and \
+        ((line[0][1] - extend[1] <= point[1] <= line[1][1] + extend[1]) or
+         (line[1][1] - extend[1] <= point[1] <= line[0][1] + extend[1]))
 
     if inside:
         if line[1][1] == line[0][1]:
@@ -156,26 +165,24 @@ def point_belongs_line(line, point, threshold, extend=(0, 0)):
                 ((point[0] - line[0][0]) / (line[1][0] - line[0][0])) -
                 ((point[1] - line[0][1]) / (line[1][1] - line[0][1]))
             )
-        # print("distance=", distance, ", threshold=", threshold, ", extend=", extend, ", belongs=", distance < threshold, ", point=", point)
         return distance <= threshold
     else:
         return False
 
 
 def calculate_cars_area(vehicles):
-    # return np.average([v.size[0] * v.size[1] for v in vehicles])
-    # return np.mean([v.size[0] * v.size[1] for v in vehicles])
-    return np.median([v.size[0] * v.size[1] for v in vehicles]), \
-           np.std([v.size[0] * v.size[1] for v in vehicles])
+    values = [v.position[2] * v.position[3] for v in vehicles]
+
+    return np.mean(values)
 
 
-def classify_detection(detection, cars_area, deviation, bikes, cars, trucks):
-    comparison_value = (cars_area - deviation, cars_area + deviation)
-
-    if (detection.size[0] * detection.size[1]) <= (comparison_value[0] * 0.6):
+def classify_detection(detection, cars_area, bikes, cars, trucks):
+    comparison_value = (cars_area * 0.3, cars_area * 3)
+    detection_size = detection.position[2] * detection.position[3]
+    if detection_size <= comparison_value[0]:
         detection.vehicle = vc.Vehicle.bike
         bikes += 1
-    elif (detection.size[0] * detection.size[1]) >= (comparison_value[1] * 3):
+    elif detection_size >= comparison_value[1]:
         detection.vehicle = vc.Vehicle.truck
         trucks += 1
     else:
@@ -185,19 +192,19 @@ def classify_detection(detection, cars_area, deviation, bikes, cars, trucks):
     return bikes, cars, trucks
 
 
-def classify_vehicles(detections, cars_area, deviation):
+def classify_vehicles(detections, cars_area):
     bikes = 0
     cars = 0
     trucks = 0
-    for detection in detections:
-        comparison_value = (cars_area - deviation, cars_area + deviation)
 
-        if (detection.size[0] * detection.size[1]) <= \
-                (comparison_value[0] * 0.6):
+    comparison_value = (cars_area * 0.3, cars_area * 3)
+    # print("comparison value=", comparison_value)
+    for detection in detections:
+        detection_size = detection.position[2] * detection.position[3]
+        if detection_size <= comparison_value[0]:
             detection.vehicle = vc.Vehicle.bike
             bikes += 1
-        elif (detection.size[0] * detection.size[1]) >= \
-                (comparison_value[1] * 3):
+        elif detection_size >= comparison_value[1]:
             detection.vehicle = vc.Vehicle.truck
             trucks += 1
         else:
