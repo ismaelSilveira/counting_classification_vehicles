@@ -30,6 +30,7 @@ if __name__ == '__main__':
     debug = config.getboolean('DEBUG')
     show_binary_image = config.getboolean('SHOW_BINARY_IMAGE')
     source = config.get('SOURCE')
+    history = config.getint('HISTORY')
 
     print('Start to process images...')
     cap = cv2.VideoCapture(source)
@@ -89,7 +90,7 @@ if __name__ == '__main__':
             frame_resized = cv2.resize(frame, (work_w, work_h))
             fgmask = background_subtractor.apply(frame_resized)
 
-            if frame_number > 120:
+            if frame_number > history:
                 # Erode and Dilate the results for removing the noise
                 morphed_mask = np.copy(fgmask)
                 morphed_mask = cv2.morphologyEx(morphed_mask,
