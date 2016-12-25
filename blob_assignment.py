@@ -3,6 +3,7 @@ from munkres import Munkres
 
 from detection import Detection
 from utils import blob_center, euclidean_distance, INFINITE
+from config import config
 
 
 def get_costs_matrix(actual_blobs, detections, threshold):
@@ -40,11 +41,14 @@ def blob2detection(blob, frame_number):
 class HungarianAlgorithm:
     def __init__(self):
         self.munkres_ = Munkres()
+        self.distance_threshold = \
+            config.getint('HUNGARIAN_ALGORITHM_DISTANCE_THRESHOLD')
+        self.max_frames_to_delete = config.getint('MAX_FRAMES_TO_DELETE')
 
     def apply(self, actual_blobs, detections, frame_number):
         costs, detections = get_costs_matrix(actual_blobs,
                                              detections,
-                                             threshold=6)
+                                             threshold=self.distance_threshold)
         to_delete = []
 
         if len(costs) > 0:
@@ -58,11 +62,13 @@ class HungarianAlgorithm:
             if len(detections) > len(indexes):
                 for i in range(0, len(detections)-1):
                     if (i not in [ind[1] for ind in indexes]) and \
-                            ((frame_number - detections[i].last_update) > 5):
+                            ((frame_number - detections[i].last_update) >
+                             self.max_frames_to_delete):
                         to_delete.append(i)
         else:
             for i in range(0, len(detections)):
-                if (frame_number - detections[i].last_update) > 5:
+                if (frame_number - detections[i].last_update) > \
+                        self.max_frames_to_delete:
                     to_delete.append(i)
 
         detections = np.delete(detections, to_delete)

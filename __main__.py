@@ -10,6 +10,7 @@ from utils import \
     draw_selected_line, \
     calculate_cars_area, \
     classify_vehicles
+from config import config
 
 
 # mouse callback function
@@ -25,12 +26,12 @@ def define_line(event, x, y, flags, param):
                 line_resized = reduce_line(line, param[0])
 
 if __name__ == '__main__':
+
+    debug = config.getboolean('DEBUG')
+    show_binary_image = config.getboolean('SHOW_BINARY_IMAGE')
+    source = config.get('SOURCE')
+
     print('Start to process images...')
-
-    source = '/home/ismael/Desktop/ModTall/VideosTrafico/AvItalia_1.mp4'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/AvItalia_2.mp4'
-    # source = '/home/ismael/Desktop/ModTall/VideosTrafico/Sarmiento.mp4'
-
     cap = cv2.VideoCapture(source)
 
     # Original FPS
@@ -114,7 +115,8 @@ if __name__ == '__main__':
 
                 blobs = blob_detector.apply(morphed_mask, frame_number)
 
-                cv2.imshow("Morphed", morphed_mask)
+                if show_binary_image:
+                    cv2.imshow("Morphed", morphed_mask)
 
                 color = (0, 255, 0)
                 (count, blob_detector.detections,
@@ -141,7 +143,8 @@ if __name__ == '__main__':
                     classified = True
                     (bikes, cars, trucks) = \
                         classify_vehicles(vehicles_to_classify, cars_area)
-                    # print(bikes, cars, trucks)
+                    if debug:
+                        print(bikes, cars, trucks)
             else:
                 draw_selected_line(original, line, (0, 0, 255))
 

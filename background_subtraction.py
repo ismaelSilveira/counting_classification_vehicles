@@ -1,20 +1,21 @@
 import numpy as np
 import cv2
 
+from config import config
+
 
 class BackgroundSubtractor:
 
     subtractor = None
 
     def __init__(self):
-
         self.subtractor = cv2.createBackgroundSubtractorMOG2()
 
-        self.subtractor.setHistory(180)
-        self.subtractor.setDetectShadows(True)
-        self.subtractor.setShadowThreshold(0.5)
+        self.subtractor.setHistory(config.getint('HISTORY'))
+        self.subtractor.setDetectShadows(config.getboolean('DETECT_SHADOWS'))
+        self.subtractor.setShadowThreshold(config.getfloat('SHADOW_THRESHOLD'))
         self.subtractor.setShadowValue(0)
-        self.subtractor.setNMixtures(255)
+        self.subtractor.setNMixtures(config.getint('N_MIXTURES'))
 
     def apply(self, frame):
 

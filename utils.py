@@ -3,10 +3,17 @@ from cv2 import putText
 import numpy as np
 
 import vehicle as vc
+from config import config
 
 MAX_WIDTH = 320
 MAX_HEIGHT = 240
-INFINITE = 100000000000
+INFINITE = config.getint('INFINITE')
+DEBUG = config.getboolean('DEBUG')
+BELONGING_THRESHOLD = config.getint('BELONGING_THRESHOLD')
+EXPAND_LINE = (config.getint('EXPAND_LINE_X'), config.getint('EXPAND_LINE_Y'))
+BIKE_CAR_PERCENTAGE = config.getint('BIKE_CAR_PERCENTAGE') / 10
+TRUCK_CAR_PERCENTAGE = config.getint('TRUCK_CAR_PERCENTAGE') / 10
+COUNT_VEHICLES_TO_MODEL_CARS = config.getint('COUNT_VEHICLES_TO_MODEL_CARS')
 
 
 def find_resolution_multiplier(w, h):
@@ -101,12 +108,15 @@ def draw_blobs_and_line(image, detections, line, color, count, bikes, cars,
             cv2.circle(image, center_point, 1, color, 2)
 
         if not detection.counted:
-            if point_belongs_line(line, center_point, 6, (0, 20)):
+            if point_belongs_line(line, center_point,
+                                  BELONGING_THRESHOLD, EXPAND_LINE):
                 color_line = (255, 0, 0)
                 count += 1
                 detection.counted = True
                 if classify:
-                    # print("sin clasificar: ", detection.position, detection.position[2] * detection.position[3])
+                    if DEBUG:
+                        print("No yet classified: ", detection.position,
+                              detection.position[2] * detection.position[3])
                     vehicles_to_classify.append(detection.copy())
                 elif classified:
                     (bikes, cars, trucks) = classify_detection(detection,
@@ -114,18 +124,23 @@ def draw_blobs_and_line(image, detections, line, color, count, bikes, cars,
                                                                bikes,
                                                                cars,
                                                                trucks)
-                    # print(detection.vehicle, detection.position[2] * detection.position[3])
-                    # print(bikes, cars, trucks)
+                    if DEBUG:
+                        print(detection.vehicle,
+                              detection.position[2] * detection.position[3])
+                        print(bikes, cars, trucks)
         else:
-            if not point_belongs_line(line, center_point, 6, (0, 20)):
+            if not point_belongs_line(line, center_point,
+                                      BELONGING_THRESHOLD, EXPAND_LINE):
                 detection.counted = False
 
-        if detection.counted:
-            putText(image, "Si", (blob_[0], blob_[1]), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2)
+        if DEBUG and detection.counted:
+            putText(image, "Si", (blob_[0], blob_[1]),
+                    cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 255), 2)
 
     draw_selected_line(image, line, color_line)
 
-    return count, detections, len(vehicles_to_classify) < 30, \
+    return count, detections, \
+           len(vehicles_to_classify) < COUNT_VEHICLES_TO_MODEL_CARS, \
            vehicles_to_classify, bikes, cars, trucks
 
 
@@ -177,7 +192,9 @@ def calculate_cars_area(vehicles):
 
 
 def classify_detection(detection, cars_area, bikes, cars, trucks):
-    comparison_value = (cars_area * 0.3, cars_area * 3)
+    comparison_value = (cars_area * BIKE_CAR_PERCENTAGE,
+                        cars_area * TRUCK_CAR_PERCENTAGE)
+
     detection_size = detection.position[2] * detection.position[3]
     if detection_size <= comparison_value[0]:
         detection.vehicle = vc.Vehicle.bike
@@ -197,8 +214,9 @@ def classify_vehicles(detections, cars_area):
     cars = 0
     trucks = 0
 
-    comparison_value = (cars_area * 0.3, cars_area * 3)
-    # print("comparison value=", comparison_value)
+    comparison_value = (cars_area * BIKE_CAR_PERCENTAGE,
+                        cars_area * TRUCK_CAR_PERCENTAGE)
+
     for detection in detections:
         detection_size = detection.position[2] * detection.position[3]
         if detection_size <= comparison_value[0]:
